@@ -42,6 +42,30 @@ services:
       - 1883:1883
     networks:
       - homeassistant-net
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    ports:
+      - 9443:9443
+      - 9000:9000/tcp
+    environment:
+      - TZ=America/Pacific
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/config:/data
+    networks:
+      - homeassistant-net
+  nodered:
+    container_name: nodered
+    image: nodered/node-red:latest
+    restart: unless-stopped
+    ports: 
+      - 1880:1880
+    volumes:
+      - ./nodered/data:/data
+    networks:
+      - homeassistant-net
 
   # services to expose other services
   cloudflare:
@@ -74,36 +98,13 @@ services:
   mdns-reflector:
     image: flungo/avahi
     container_name: mdns-reflector
+    restart: unless-stopped
     environment:
       - REFLECTOR_ENABLE_REFLECTOR=yes
     networks:
       homeassistant-net:
       external-net:
         ipv4_address: 10.0.0.199
-  portainer:
-    container_name: portainer
-    image: portainer/portainer-ce:latest
-    restart: unless-stopped
-    ports:
-      - 9443:9443
-      - 9000:9000/tcp
-    environment:
-      - TZ=America/Pacific
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./portainer/config:/data
-    networks:
-      - homeassistant-net
-  nodered:
-    container_name: nodered
-    image: nodered/node-red:latest
-    restart: unless-stopped
-    ports: 
-      - 1880:1880
-    volumes:
-      - ./nodered/data:/data
-    networks:
-      - homeassistant-net
 
 networks:
   infrastructure-net:
