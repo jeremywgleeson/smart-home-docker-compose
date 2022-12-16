@@ -1,0 +1,125 @@
+version: '3'
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    volumes:
+      - ./homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+      - /var/run/dbus:/var/run/dbus:ro
+      - /dev/serial:/dev/serial:ro
+      - /dev/bus:/dev/bus:ro
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/ttyUSB1:/dev/ttyUSB1
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - 8123:8123
+    networks:
+      - homeassistant-net
+  esphome:
+    container_name: esphome
+    image: esphome/esphome
+    volumes:
+      - ./esphome/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - 6052:6052
+    networks:
+      - homeassistant-net
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto
+    volumes:
+      - ./mosquitto:/mosquitto
+    ports:
+      - 1883:1883
+    networks:
+      - homeassistant-net
+
+  # services to expose other services
+  cloudflare:
+    container_name: cloudflared
+    image: "cloudflare/cloudflared:latest"
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=$CLOUDFLARE_TUNNEL_TOKEN
+    networks:
+      - homeassistant-net
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    volumes:
+      - ./nginx/conf/:/etc/nginx/conf.d/:ro
+      - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+    networks:
+      - homeassistant-net
+  mdns-reflector:
+    image: flungo/avahi
+    container_name: mdns-reflector
+    environment:
+      - REFLECTOR_ENABLE_REFLECTOR=yes
+    networks:
+      homeassistant-net:
+      external-net:
+        ipv4_address: 10.0.0.199
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    ports:
+      - 9443:9443
+      - 9000:9000/tcp
+    environment:
+      - TZ=America/Pacific
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/config:/data
+    networks:
+      - homeassistant-net
+  nodered:
+    container_name: nodered
+    image: nodered/node-red:latest
+    restart: unless-stopped
+    ports: 
+      - 1880:1880
+    volumes:
+      - ./nodered/data:/data
+    networks:
+      - homeassistant-net
+
+networks:
+  infrastructure-net:
+    name: infrastructure-net
+  external-net:
+    name: external-net
+    driver: macvlan
+    driver_opts:
+      parent: enp3s0
+    ipam:
+      config:
+        - subnet: 10.0.0.0/22
+          gateway: 10.0.0.1
+  homeassistant-net:
+    name: homeassistant-net
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24
+          gateway: 172.20.2.1

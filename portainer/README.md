@@ -1,0 +1,2 @@
+# portainer
+Before exposing portainer externally, you should configure a user to ensure no one can control your home! Note that portainer allows for easily monitoring and controlling docker on your host, so not securing this is basically just opening ssh with a default password.
