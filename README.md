@@ -38,4 +38,8 @@ Once you set your tunnel token, you can add tunnels:
 [esphome](esphome/README.md)
 
 ### avahi
-We're using avahi to reflect mdns on our local network to a docker network. This is so esphome can find esp's which create mdns entries.
+We're using avahi to reflect mdns on our local network to a docker network. This is so esphome can find esp's which create mdns entries.  
+If the server is shut down, avahi will break. You can fix this with:
+```
+docker rm -v mdns-reflector
+```
