@@ -66,6 +66,19 @@ services:
       - ./nodered/data:/data
     networks:
       - homeassistant-net
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:19659/tcp"
+    environment:
+      - TZ=America/Pacific
+    volumes:
+      - './pihole/config:/etc/pihole'
+      - './pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
 
   # services to expose other services
   cloudflare:
