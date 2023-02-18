@@ -12,11 +12,17 @@ Home assistant docker setup with:
 ## Setup
 Most setup is going to be container-specific. For example, adding an admin user to portainer, nodered, and mosquitto are all things you should do, but the process is different for each. If there are specific notes about migrating, they will be included in the readme for that service. Otherwise, please consult the documentation for the image.
 
+### certbot
+[certbot](certbot/README.md)
+
 ### homeassistant
 [homeassistant](homeassistant/README.md)
 
 ### portainer
 [portainer](portainer/README.md)
+
+### pihole
+[pihole](pihole/README.md)
 
 ### mosquitto
 [mosquitto](mosquitto/README.md)
@@ -24,15 +30,16 @@ Most setup is going to be container-specific. For example, adding an admin user 
 ### nodered
 [nodered](nodered/README.md)
 
+### nginx
+[nginx](nginx/README.md)
+
 ### cloudflared
 To set up cloudflared, you need a cloudflare account.
 
-In order to use cloudflare tunnels, the env var `CLOUDFLARE_TUNNEL_TOKEN` should be populated in `.env` in the project root.
-
-Once you set your tunnel token, you can add tunnels:
-- `homeassistant.your-domain.com` -> http://homeassistant:8123
-- `portainer.your-domain.com` -> http://portainer:9000
-- `nodered.your-domain.com` -> http://nodered:1800
+In order to use cloudflare ddns with certbot, add a file at `.secrets/certbot/cloudflare.ini` with the following:
+```
+dns_cloudflare_api_token = YOUR_CLOUDFLARE_API_TOKEN
+```
 
 ### esphome
 [esphome](esphome/README.md)
@@ -43,3 +50,15 @@ If the server is shut down, avahi will break. You can fix this with:
 ```
 docker rm -v mdns-reflector
 ```
+
+I've found that some of my esps do not transmit mdns except for when they are powered on. These devices often show up as unavailable, and I have yet to find a resolution to this issue.
+
+
+## Secrets
+A `.env` file should contain:
+```
+CLOUDFLARE_DNS_TOKEN=CLOUDFLARE_API_TOKEN
+
+PIHOLE_WEB_PASSWORD=YOUR_DESIRED_PASSWORD
+```
+The cloudflare dns token should also be provided to certbot for the dns challenge (see [certbot](###certbot))

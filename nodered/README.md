@@ -1,2 +1,2 @@
 # nodered
-Before exposing nodered externally, you should configure a user to ensure no one can control your home!
+Internal service, if you want to access externally you should create a user by following the documentation.

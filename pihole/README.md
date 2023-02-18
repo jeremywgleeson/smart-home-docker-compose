@@ -1,0 +1,2 @@
+# pihole
+We use pihole here as a dns to block ads, but also add a custom dns entry so that dns requests to our domain resolve to our local server instead of global ip. This makes local-only services work and means that if our ISP connection is down, we can still access all our services.
