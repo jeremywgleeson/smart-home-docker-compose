@@ -1,5 +1,20 @@
 version: '3'
 services:
+  # Smart home services
+  esphome:
+    container_name: esphome
+    image: esphome/esphome
+    volumes:
+      - ./esphome/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    # ports:
+    #   - 6052:6052
+    expose:
+      - 6052
+    networks:
+      - homeassistant-net
   homeassistant:
     container_name: homeassistant
     image: "ghcr.io/home-assistant/home-assistant:stable"
@@ -25,20 +40,6 @@ services:
       - 8123
     networks:
       - homeassistant-net
-  esphome:
-    container_name: esphome
-    image: esphome/esphome
-    volumes:
-      - ./esphome/config:/config
-      - /etc/localtime:/etc/localtime:ro
-    restart: unless-stopped
-    privileged: true
-    # ports:
-    #   - 6052:6052
-    expose:
-      - 6052
-    networks:
-      - homeassistant-net
   mosquitto:
     container_name: mosquitto
     image: eclipse-mosquitto
@@ -48,21 +49,6 @@ services:
       - 1883:1883
     networks:
       - homeassistant-net
-  portainer:
-    container_name: portainer
-    image: portainer/portainer-ce:latest
-    restart: unless-stopped
-    # ports:
-    #   - 9000:9000/tcp
-    expose:
-      - 9000
-    environment:
-      - TZ=America/Pacific
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./portainer/config:/data
-    networks:
-      infrastructure-net:
   nodered:
     container_name: nodered
     image: nodered/node-red:latest
@@ -75,6 +61,50 @@ services:
       - ./nodered/data:/data
     networks:
       - homeassistant-net
+  
+  # Infrastructure services
+  mdns-reflector:
+    image: flungo/avahi
+    container_name: mdns-reflector
+    restart: unless-stopped
+    environment:
+      - REFLECTOR_ENABLE_REFLECTOR=yes
+    networks:
+      homeassistant-net:
+      external-net:
+        ipv4_address: 10.0.0.199
+  certbot:
+    image: certbot/dns-cloudflare:latest
+    container_name: certbot
+    entrypoint: "/bin/sh -c \"trap exit TERM; while :; do certbot renew --post-hook 'chmod -R 755 /etc/letsencrypt/live /etc/letsencrypt/archive && chmod 644 /etc/letsencrypt/archive/jeremygleeson.com/privkey*.pem'; sleep 12h & wait $${!}; done;\""
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:rw
+      - ./certbot/lib-letsencrypt:/var/lib/letsencrypt:rw
+      - ./.secrets/certbot:/secrets/certbot:ro
+  cloudflare-ddns:
+    image: "oznu/cloudflare-ddns:latest"
+    container_name: cloudflare-ddns
+    restart: unless-stopped
+    environment:
+      - API_KEY=$CLOUDFLARE_DNS_TOKEN
+      - ZONE=jeremygleeson.com
+      - SUBDOMAIN=homeassistant
+      - DNS_SERVER=pihole
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    volumes:
+      - ./nginx/conf/:/etc/nginx/conf.d/:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    networks:
+      homeassistant-net:
+      infrastructure-net:
+    depends_on:
+      - certbot
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
@@ -94,59 +124,21 @@ services:
     networks:
       infrastructure-net:
         ipv4_address: 10.2.0.100
-
-  # services to expose other services
-  # cloudflare:
-  #   container_name: cloudflared
-  #   image: "cloudflare/cloudflared:latest"
-  #   restart: unless-stopped
-  #   command: tunnel run
-  #   environment:
-  #     - TUNNEL_TOKEN=$CLOUDFLARE_TUNNEL_TOKEN
-  #   networks:
-  #     - homeassistant-net
-  cloudflare-ddns:
-    image: "oznu/cloudflare-ddns:latest"
-    container_name: cloudflare-ddns
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
     restart: unless-stopped
+    # ports:
+    #   - 9000:9000/tcp
+    expose:
+      - 9000
     environment:
-      - API_KEY=$CLOUDFLARE_DNS_TOKEN
-      - ZONE=jeremygleeson.com
-      - SUBDOMAIN=homeassistant
-      - DNS_SERVER=pihole
-  certbot:
-    image: certbot/dns-cloudflare:latest
-    container_name: certbot
-    entrypoint: "/bin/sh -c \"trap exit TERM; while :; do certbot renew --post-hook 'chmod -R 755 /etc/letsencrypt/live /etc/letsencrypt/archive && chmod 644 /etc/letsencrypt/archive/jeremygleeson.com/privkey*.pem'; sleep 12h & wait $${!}; done;\""
+      - TZ=America/Pacific
     volumes:
-      - ./certbot/conf:/etc/letsencrypt:rw
-      - ./certbot/lib-letsencrypt:/var/lib/letsencrypt:rw
-      - ./.secrets/certbot:/secrets/certbot:ro
-  nginx:
-    image: nginx:latest
-    container_name: nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    restart: unless-stopped
-    volumes:
-      - ./nginx/conf/:/etc/nginx/conf.d/:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/config:/data
     networks:
-      homeassistant-net:
       infrastructure-net:
-    depends_on:
-      - certbot
-  mdns-reflector:
-    image: flungo/avahi
-    container_name: mdns-reflector
-    restart: unless-stopped
-    environment:
-      - REFLECTOR_ENABLE_REFLECTOR=yes
-    networks:
-      homeassistant-net:
-      external-net:
-        ipv4_address: 10.0.0.199
   wireguard:
     image: lscr.io/linuxserver/wireguard:latest
     container_name: wireguard
@@ -169,6 +161,17 @@ services:
     restart: unless-stopped
     networks:
       infrastructure-net:
+    
+  # NOTE: sample cloudflare tunnel config (if you're behind CGNAT)
+  # cloudflared:
+  #   container_name: cloudflared
+  #   image: "cloudflare/cloudflared:latest"
+  #   restart: unless-stopped
+  #   command: tunnel run
+  #   environment:
+  #     - TUNNEL_TOKEN=$CLOUDFLARE_TUNNEL_TOKEN
+  #   networks:
+  #     infrastructure-net:
 
 networks:
   infrastructure-net:
