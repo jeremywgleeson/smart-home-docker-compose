@@ -61,6 +61,8 @@ If your isp uses a CGNAT and you have no public ip, you can use tunnels instead 
 #### pihole
 [pihole](pihole/README.md)
 
+**NOTE:** If you use pihole, make sure you update your router's DNS to point to the machine running the project.
+
 #### portainer
 [portainer](portainer/README.md)
 

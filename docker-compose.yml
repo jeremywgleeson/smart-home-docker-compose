@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   # Smart home services
   esphome:
@@ -53,7 +53,7 @@ services:
     container_name: nodered
     image: nodered/node-red:latest
     restart: unless-stopped
-    # ports: 
+    # ports:
     #   - 1880:1880
     expose:
       - 1880
@@ -61,7 +61,7 @@ services:
       - ./nodered/data:/data
     networks:
       - homeassistant-net
-  
+
   # Infrastructure services
   mdns-reflector:
     image: flungo/avahi
@@ -76,7 +76,7 @@ services:
   certbot:
     image: certbot/dns-cloudflare:latest
     container_name: certbot
-    entrypoint: "/bin/sh -c \"trap exit TERM; while :; do certbot renew --post-hook 'chmod -R 755 /etc/letsencrypt/live /etc/letsencrypt/archive && chmod 644 /etc/letsencrypt/archive/jeremygleeson.com/privkey*.pem'; sleep 12h & wait $${!}; done;\""
+    entrypoint: '/bin/sh -c "trap exit TERM; while :; do certbot renew --post-hook ''chmod -R 755 /etc/letsencrypt/live /etc/letsencrypt/archive && chmod 644 /etc/letsencrypt/archive/jeremygleeson.com/privkey*.pem''; sleep 12h & wait $${!}; done;"'
     volumes:
       - ./certbot/conf:/etc/letsencrypt:rw
       - ./certbot/lib-letsencrypt:/var/lib/letsencrypt:rw
@@ -119,8 +119,11 @@ services:
       - TZ=America/Pacific
       - WEBPASSWORD=$PIHOLE_WEB_PASSWORD
     volumes:
-      - './pihole/config:/etc/pihole'
-      - './pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
+      - "./pihole/config:/etc/pihole"
+      - "./pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
+    dns:
+      - 127.0.0.1
+      - 8.8.8.8
     networks:
       infrastructure-net:
         ipv4_address: 10.2.0.100
@@ -161,7 +164,7 @@ services:
     restart: unless-stopped
     networks:
       infrastructure-net:
-    
+
   # NOTE: sample cloudflare tunnel config (if you're behind CGNAT)
   # cloudflared:
   #   container_name: cloudflared
