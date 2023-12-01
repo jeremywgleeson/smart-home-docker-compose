@@ -27,7 +27,7 @@ services:
       - /dev/serial:/dev/serial:ro
       - /dev/bus:/dev/bus:ro
     devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+      #- /dev/ttyUSB0:/dev/ttyUSB0
       - /dev/ttyUSB1:/dev/ttyUSB1
     depends_on:
       - mosquitto
@@ -42,13 +42,32 @@ services:
       - homeassistant-net
   mosquitto:
     container_name: mosquitto
-    image: eclipse-mosquitto
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    command: "mosquitto -c /mosquitto-no-auth.conf"
     volumes:
       - ./mosquitto:/mosquitto
-    ports:
-      - 1883:1883
+    expose:
+      - 1883
+      - 9001
     networks:
       - homeassistant-net
+  zigbee2mqtt:
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    image: koenkk/zigbee2mqtt
+    volumes:
+      - ./zigbee2mqtt:/app/data
+      - /run/udev:/run/dev:ro
+    expose:
+      - 80 
+    environment:
+      - tz=america/pacific
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    networks:
+      - homeassistant-net
+      - infrastructure-net
   nodered:
     container_name: nodered
     image: nodered/node-red:latest
@@ -61,6 +80,23 @@ services:
       - ./nodered/data:/data
     networks:
       - homeassistant-net
+  appdaemon:
+    container_name: appdaemon
+    image: acockburn/appdaemon:latest
+    restart: unless-stopped
+    environment:
+      - HA_URL="http://homeassistant:8123"
+      - TOKEN=$APPDAEMON_HA_TOKEN
+      - DASH_URL="https://guest.jeremygleeson.com"
+    expose:
+        - 5050
+    networks:
+      - homeassistant-net
+      - infrastructure-net
+    volumes:
+      - ./appdaemon/conf:/conf
+      - /etc/localtime:/etc/localtime:ro
+    command: --debug DEBUG
 
   # Infrastructure services
   mdns-reflector:
@@ -105,28 +141,29 @@ services:
       infrastructure-net:
     depends_on:
       - certbot
-  pihole:
-    container_name: pihole
-    image: pihole/pihole:latest
-    restart: unless-stopped
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      # - "19659:80/tcp"
-    expose:
-      - 80
-    environment:
-      - TZ=America/Pacific
-      - WEBPASSWORD=$PIHOLE_WEB_PASSWORD
-    volumes:
-      - "./pihole/config:/etc/pihole"
-      - "./pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
-    dns:
-      - 127.0.0.1
-      - 8.8.8.8
-    networks:
-      infrastructure-net:
-        ipv4_address: 10.2.0.100
+  
+ #pihole:
+ #  container_name: pihole
+ #  image: pihole/pihole:latest
+ #  restart: unless-stopped
+ #  ports:
+ #    - "53:53/tcp"
+ #    - "53:53/udp"
+ #    # - "19659:80/tcp"
+ #  expose:
+ #    - 80
+ #  environment:
+ #    - TZ=America/Pacific
+ #    - WEBPASSWORD=$PIHOLE_WEB_PASSWORD
+ #  volumes:
+ #    - "./pihole/config:/etc/pihole"
+ #    - "./pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
+ #  dns:
+ #    - 127.0.0.1
+ #    - 8.8.8.8
+ #  networks:
+ #    infrastructure-net:
+ #      ipv4_address: 10.2.0.100
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:latest
@@ -142,28 +179,28 @@ services:
       - ./portainer/config:/data
     networks:
       infrastructure-net:
-  wireguard:
-    image: lscr.io/linuxserver/wireguard:latest
-    container_name: wireguard
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/Pacific
-      - SERVERURL=jeremygleeson.com
-      - PEERS=jeremyiPhone,jeremyMacbook
-      - PEERDNS=10.2.0.100
-    volumes:
-      - ./wireguard/config:/config
-    ports:
-      - 51820:51820/udp
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    restart: unless-stopped
-    networks:
-      infrastructure-net:
+ #wireguard:
+ #  image: lscr.io/linuxserver/wireguard:latest
+ #  container_name: wireguard
+ #  cap_add:
+ #    - NET_ADMIN
+ #    - SYS_MODULE
+ #  environment:
+ #    - PUID=1000
+ #    - PGID=1000
+ #    - TZ=America/Pacific
+ #    - SERVERURL=jeremygleeson.com
+ #    - PEERS=jeremyiPhone,jeremyiPad,jeremyMacbook,hadassahiPhone,hadassahiPad
+ #    - PEERDNS=10.2.0.100
+ #  volumes:
+ #    - ./wireguard/config:/config
+ #  ports:
+ #    - 51820:51820/udp
+ #  sysctls:
+ #    - net.ipv4.conf.all.src_valid_mark=1
+ #  restart: unless-stopped
+ #  networks:
+ #    infrastructure-net:
 
   # NOTE: sample cloudflare tunnel config (if you're behind CGNAT)
   # cloudflared:

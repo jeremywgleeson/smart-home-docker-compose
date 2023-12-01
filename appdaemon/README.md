@@ -1,0 +1,1 @@
+AppDaemon can be used to add python scripts/extra dashboards. I added this so I could serve a web dashboard to the guest vlan with some guest features like opening the front door etc (not implemented).
